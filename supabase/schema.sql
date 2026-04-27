@@ -194,6 +194,50 @@ create table if not exists public.template_exercises (
   note text
 );
 
+create table if not exists public.apple_health_daily_metrics (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references public.users (id) on delete cascade,
+  external_id text not null,
+  metric_type text not null,
+  value numeric(12,4) not null,
+  unit text not null,
+  start_date timestamptz not null,
+  end_date timestamptz not null,
+  source_name text,
+  source_bundle_identifier text,
+  created_at timestamptz not null default now(),
+  unique (user_id, external_id)
+);
+
+create table if not exists public.apple_health_workouts (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references public.users (id) on delete cascade,
+  external_id text not null,
+  workout_type text not null,
+  duration_seconds numeric(12,2) not null,
+  total_energy_burned numeric(12,2),
+  total_distance numeric(12,2),
+  start_date timestamptz not null,
+  end_date timestamptz not null,
+  source_name text,
+  source_bundle_identifier text,
+  created_at timestamptz not null default now(),
+  unique (user_id, external_id)
+);
+
+create table if not exists public.apple_health_sleep_samples (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references public.users (id) on delete cascade,
+  external_id text not null,
+  category_value integer not null,
+  start_date timestamptz not null,
+  end_date timestamptz not null,
+  source_name text,
+  source_bundle_identifier text,
+  created_at timestamptz not null default now(),
+  unique (user_id, external_id)
+);
+
 alter table public.users enable row level security;
 alter table public.exercises enable row level security;
 alter table public.food_items enable row level security;
@@ -209,6 +253,9 @@ alter table public.meal_items enable row level security;
 alter table public.body_metrics enable row level security;
 alter table public.workout_templates enable row level security;
 alter table public.template_exercises enable row level security;
+alter table public.apple_health_daily_metrics enable row level security;
+alter table public.apple_health_workouts enable row level security;
+alter table public.apple_health_sleep_samples enable row level security;
 
 create policy "users can read own profile" on public.users
   for select using (auth.uid() = id);
@@ -235,6 +282,12 @@ create policy "users manage own meals" on public.meals
 create policy "users manage own body_metrics" on public.body_metrics
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create policy "users manage own templates" on public.workout_templates
+  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "users manage own apple health daily metrics" on public.apple_health_daily_metrics
+  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "users manage own apple health workouts" on public.apple_health_workouts
+  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "users manage own apple health sleep samples" on public.apple_health_sleep_samples
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
 create policy "users manage related workout_exercises" on public.workout_exercises

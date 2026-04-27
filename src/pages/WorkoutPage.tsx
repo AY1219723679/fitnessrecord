@@ -1,17 +1,18 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
+import { ImagePlus, Sparkles } from 'lucide-react';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Select } from '../components/ui/Select';
 import { Textarea } from '../components/ui/Textarea';
-import { formatDate, formatWorkoutType, getExerciseName, makeId } from '../lib/utils';
+import { makeId } from '../lib/utils';
 import { useAppStore } from '../store/appStore';
-import type { Workout, WorkoutExerciseEntry, WorkoutFocus, WorkoutType } from '../types';
+import type { Workout, WorkoutAnalysisResult, WorkoutExerciseEntry, WorkoutFocus, WorkoutType } from '../types';
 
 const today = new Date().toISOString().slice(0, 10);
 
 export function WorkoutPage() {
-  const { exercises, workouts, templates, addWorkout, applyTemplate, user } = useAppStore();
+  const { exercises, templates, addWorkout, applyTemplate, user } = useAppStore();
   const [date, setDate] = useState(today);
   const [type, setType] = useState<WorkoutType>('chest_shoulders_core');
   const [focus, setFocus] = useState<WorkoutFocus>('strength');
@@ -20,47 +21,106 @@ export function WorkoutPage() {
   const [energyLevel, setEnergyLevel] = useState(4);
   const [painAreas, setPainAreas] = useState('');
   const [note, setNote] = useState('');
-  const [selectedExerciseId, setSelectedExerciseId] = useState(exercises[0]?.id ?? '');
+  const [workoutInput, setWorkoutInput] = useState(
+    '今天练背：引体向上2组 6次/5次，杠铃划船3组 42.5kg 8次、42.5kg 8次、45kg 6次，绳索卷腹1组 22.5kg 15次，整体RPE 8，训练78分钟。'
+  );
+  const [workoutImageDataUrl, setWorkoutImageDataUrl] = useState('');
+  const [analysis, setAnalysis] = useState<WorkoutAnalysisResult | null>(null);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [analysisError, setAnalysisError] = useState('');
   const [exerciseEntries, setExerciseEntries] = useState<WorkoutExerciseEntry[]>([
     {
       id: makeId('entry'),
       exerciseId: exercises[0]?.id ?? '',
       note: '',
-      sets: [{ id: makeId('set'), exerciseId: exercises[0]?.id ?? '', setNumber: 1, weight: 0, reps: 8, rpe: 7, tempo: '', isPr: false, note: '' }]
+      sets: [{ id: makeId('set'), exerciseId: exercises[0]?.id ?? '', setNumber: 1, weight: 0, reps: 8, rpe: 7, isPr: false, note: '' }]
     }
   ]);
   const [templateId, setTemplateId] = useState(templates[0]?.id ?? '');
 
-  const exerciseTrend = useMemo(() => {
-    return workouts
-      .filter((workout) =>
-        workout.exerciseEntries.some((entry) => entry.exerciseId === selectedExerciseId)
-      )
-      .map((workout) => {
-        const matchingEntry = workout.exerciseEntries.find((entry) => entry.exerciseId === selectedExerciseId);
-        const topSet = matchingEntry?.sets.reduce(
-          (best, set) => Math.max(best, set.weight * Math.max(set.reps, 1)),
-          0
-        );
+  const createDefaultExerciseEntry = (): WorkoutExerciseEntry => ({
+    id: makeId('entry'),
+    exerciseId: exercises[0]?.id ?? '',
+    note: '',
+    sets: [
+      {
+        id: makeId('set'),
+        exerciseId: exercises[0]?.id ?? '',
+        setNumber: 1,
+        weight: 0,
+        reps: 8,
+        rpe: 7,
+        isPr: false,
+        note: ''
+      }
+    ]
+  });
 
+  const findExerciseId = (exerciseName: string) => {
+    const normalized = exerciseName.trim().toLowerCase();
+    return (
+      exercises.find(
+        (exercise) =>
+          exercise.nameZh.toLowerCase() === normalized ||
+          exercise.nameEn.toLowerCase() === normalized ||
+          exercise.key.toLowerCase() === normalized
+      )?.id ?? exercises[0]?.id ?? ''
+    );
+  };
+
+  const adjustSetCount = (entryId: string, nextCount: number) => {
+    const safeCount = Math.max(1, nextCount);
+
+    updateExerciseEntry(entryId, (current) => {
+      if (safeCount === current.sets.length) {
+        return current;
+      }
+
+      if (safeCount < current.sets.length) {
         return {
-          id: workout.id,
-          date: workout.date,
-          topSet: topSet ?? 0
+          ...current,
+          sets: current.sets.slice(0, safeCount).map((set, index) => ({
+            ...set,
+            setNumber: index + 1
+          }))
         };
-      })
-      .sort((a, b) => a.date.localeCompare(b.date));
-  }, [selectedExerciseId, workouts]);
+      }
+
+      const lastSet = current.sets[current.sets.length - 1];
+      const additionalSets = Array.from({ length: safeCount - current.sets.length }, (_, index) => ({
+        id: makeId('set'),
+        exerciseId: current.exerciseId,
+        setNumber: current.sets.length + index + 1,
+        weight: lastSet?.weight ?? 0,
+        reps: lastSet?.reps ?? 8,
+        rpe: lastSet?.rpe ?? 7,
+        isPr: false,
+        note: ''
+      }));
+
+      return {
+        ...current,
+        sets: [...current.sets, ...additionalSets]
+      };
+    });
+  };
+
+  const resetWorkoutForm = () => {
+    setDate(today);
+    setType('chest_shoulders_core');
+    setFocus('strength');
+    setDurationMinutes(70);
+    setRpe(7);
+    setEnergyLevel(4);
+    setPainAreas('');
+    setNote('');
+    setExerciseEntries([createDefaultExerciseEntry()]);
+  };
 
   const addExerciseEntry = () => {
     setExerciseEntries((current) => [
       ...current,
-      {
-        id: makeId('entry'),
-        exerciseId: exercises[0]?.id ?? '',
-        note: '',
-        sets: [{ id: makeId('set'), exerciseId: exercises[0]?.id ?? '', setNumber: 1, weight: 0, reps: 8, rpe: 7, tempo: '', isPr: false, note: '' }]
-      }
+      createDefaultExerciseEntry()
     ]);
   };
 
@@ -91,23 +151,170 @@ export function WorkoutPage() {
     };
 
     addWorkout(workout);
-    setNote('');
-    setPainAreas('');
+    resetWorkoutForm();
   };
 
   const handleApplyTemplate = () => {
-    const created = applyTemplate(templateId);
-    if (created) {
-      setDate(created.date);
-      setType(created.type);
-      setFocus(created.focus);
-      setExerciseEntries(created.exerciseEntries);
-      setNote(created.note ?? '');
+    const draft = applyTemplate(templateId);
+    if (draft) {
+      setDate(draft.date);
+      setType(draft.type);
+      setFocus(draft.focus);
+      setDurationMinutes(draft.durationMinutes);
+      setRpe(draft.rpe);
+      setEnergyLevel(draft.energyLevel);
+      setExerciseEntries(draft.exerciseEntries);
+      setNote(draft.note ?? '');
+      setPainAreas(draft.painAreas.join('，'));
+    }
+  };
+
+  const handleWorkoutImageChange = async (file: File | null) => {
+    if (!file) {
+      setWorkoutImageDataUrl('');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === 'string') {
+        setWorkoutImageDataUrl(reader.result);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleAnalyzeWorkout = async () => {
+    if (!workoutInput.trim() && !workoutImageDataUrl) {
+      setAnalysisError('请先输入一次训练描述，或者上传训练截图。');
+      return;
+    }
+
+    setIsAnalyzing(true);
+    setAnalysisError('');
+
+    try {
+      const response = await fetch('/api/workout-analyze', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          prompt: workoutInput,
+          imageDataUrl: workoutImageDataUrl || undefined,
+          exercises: exercises.map((exercise) => ({
+            key: exercise.key,
+            nameEn: exercise.nameEn,
+            nameZh: exercise.nameZh
+          }))
+        })
+      });
+
+      if (!response.ok) {
+        const errorPayload = await response.json().catch(() => null);
+        throw new Error(errorPayload?.error ?? '训练解析失败，请稍后重试。');
+      }
+
+      const payload = (await response.json()) as WorkoutAnalysisResult;
+      setAnalysis(payload);
+      setType(payload.workoutType);
+      setFocus(payload.focus);
+      setDurationMinutes(payload.durationMinutes);
+      setRpe(payload.rpe);
+      setEnergyLevel(payload.energyLevel);
+      setPainAreas(payload.painAreas.join('，'));
+      setNote(payload.note || payload.assumptions.join('；'));
+      setExerciseEntries(
+        payload.exercises.length > 0
+          ? payload.exercises.map((exercise) => {
+              const exerciseId = findExerciseId(exercise.exerciseName);
+              return {
+                id: makeId('entry'),
+                exerciseId,
+                note: exercise.note ?? '',
+                sets: exercise.sets.map((set, index) => ({
+                  id: makeId('set'),
+                  exerciseId,
+                  setNumber: index + 1,
+                  weight: set.weight,
+                  reps: set.reps,
+                  rpe: set.rpe,
+                  isPr: set.isPr,
+                  note: ''
+                }))
+              };
+            })
+          : [createDefaultExerciseEntry()]
+      );
+    } catch (error) {
+      setAnalysisError(error instanceof Error ? error.message : '训练解析失败，请稍后重试。');
+    } finally {
+      setIsAnalyzing(false);
     }
   };
 
   return (
-    <div className="grid gap-5 xl:grid-cols-[1.05fr_0.95fr]">
+    <div className="grid gap-5">
+      <Card title="AI 解析训练" subtitle="输入一句训练描述或上传训练笔记，让 ChatGPT 自动回填训练表单">
+        <div className="grid gap-4">
+          <Textarea
+            label="模糊输入"
+            value={workoutInput}
+            onChange={(event) => setWorkoutInput(event.target.value)}
+            placeholder="例如：今天胸肩重量日，卧推 35kg 8次、37.5kg 6次，史密斯肩推 25kg 10次、27.5kg 8次，训练 74 分钟，RPE 7"
+          />
+          <div className="rounded-3xl border border-dashed border-line bg-panel p-4">
+            <label className="flex cursor-pointer flex-col gap-3 text-sm text-muted">
+              <span className="flex items-center gap-2 text-ink">
+                <ImagePlus size={16} />
+                上传训练截图 / 笔记（可选）
+              </span>
+              <input
+                type="file"
+                accept="image/*"
+                className="text-sm"
+                onChange={(event) => handleWorkoutImageChange(event.target.files?.[0] ?? null)}
+              />
+            </label>
+            {workoutImageDataUrl ? (
+              <img
+                src={workoutImageDataUrl}
+                alt="workout preview"
+                className="mt-4 h-40 w-full rounded-2xl object-cover"
+              />
+            ) : null}
+          </div>
+          <div className="flex flex-wrap gap-3">
+            <Button onClick={handleAnalyzeWorkout} disabled={isAnalyzing}>
+              <Sparkles size={16} />
+              {isAnalyzing ? '正在解析...' : '让 ChatGPT 解析训练'}
+            </Button>
+            <Button variant="secondary" onClick={handleApplyTemplate}>
+              填入模板
+            </Button>
+          </div>
+          {analysisError ? <p className="text-sm text-red-600">{analysisError}</p> : null}
+          {analysis ? (
+            <div className="rounded-2xl border border-dashed border-accent/40 bg-[#eef6ff] p-4 text-sm text-ink">
+              <p className="font-medium">
+                解析结果：{analysis.exercises.length} 个动作 · {analysis.durationMinutes} 分钟 · RPE {analysis.rpe}
+              </p>
+              <p className="mt-2 text-muted">
+                置信度：
+                {analysis.confidence === 'high'
+                  ? '高'
+                  : analysis.confidence === 'medium'
+                    ? '中'
+                    : '低'}
+              </p>
+              {analysis.assumptions.length > 0 ? (
+                <p className="mt-2 text-muted">假设：{analysis.assumptions.join('；')}</p>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
+      </Card>
+
       <Card title="记录训练" subtitle="支持模板、重量日 / 容量日、舞蹈训练和动作组次输入">
         <div className="grid gap-4 md:grid-cols-2">
           <Input label="日期" type="date" value={date} onChange={(event) => setDate(event.target.value)} />
@@ -131,7 +338,7 @@ export function WorkoutPage() {
           <Input label="能量水平 1-5" type="number" min="1" max="5" value={energyLevel} onChange={(event) => setEnergyLevel(Number(event.target.value))} />
         </div>
 
-        <div className="mt-4 grid gap-4 md:grid-cols-[1fr_auto]">
+        <div className="mt-4">
           <Select label="从模板快速创建" value={templateId} onChange={(event) => setTemplateId(event.target.value)}>
             {templates.map((template) => (
               <option key={template.id} value={template.id}>
@@ -139,34 +346,38 @@ export function WorkoutPage() {
               </option>
             ))}
           </Select>
-          <div className="flex items-end">
-            <Button fullWidth variant="secondary" onClick={handleApplyTemplate}>
-              应用模板
-            </Button>
-          </div>
         </div>
 
         <div className="mt-6 space-y-4">
           {exerciseEntries.map((entry, index) => (
-            <div key={entry.id} className="rounded-3xl border border-line bg-surface p-4">
+            <div key={entry.id} className="rounded-3xl border border-line bg-panel p-4">
               <div className="grid gap-4 md:grid-cols-[1fr_auto]">
-                <Select
-                  label={`动作 ${index + 1}`}
-                  value={entry.exerciseId}
-                  onChange={(event) =>
-                    updateExerciseEntry(entry.id, (current) => ({
-                      ...current,
-                      exerciseId: event.target.value,
-                      sets: current.sets.map((set) => ({ ...set, exerciseId: event.target.value }))
-                    }))
-                  }
-                >
-                  {exercises.map((exercise) => (
-                    <option key={exercise.id} value={exercise.id}>
-                      {exercise.nameZh}
-                    </option>
-                  ))}
-                </Select>
+                <div className="grid gap-4 md:grid-cols-[1fr_120px]">
+                  <Select
+                    label={`动作 ${index + 1}`}
+                    value={entry.exerciseId}
+                    onChange={(event) =>
+                      updateExerciseEntry(entry.id, (current) => ({
+                        ...current,
+                        exerciseId: event.target.value,
+                        sets: current.sets.map((set) => ({ ...set, exerciseId: event.target.value }))
+                      }))
+                    }
+                  >
+                    {exercises.map((exercise) => (
+                      <option key={exercise.id} value={exercise.id}>
+                        {exercise.nameZh}
+                      </option>
+                    ))}
+                  </Select>
+                  <Input
+                    label="组数"
+                    type="number"
+                    min="1"
+                    value={entry.sets.length}
+                    onChange={(event) => adjustSetCount(entry.id, Number(event.target.value))}
+                  />
+                </div>
                 <div className="flex items-end">
                   <Button variant="ghost" onClick={addExerciseEntry}>
                     添加动作
@@ -182,17 +393,16 @@ export function WorkoutPage() {
                       <th className="pb-2 pr-3">重量 ({user.weightUnit})</th>
                       <th className="pb-2 pr-3">次数</th>
                       <th className="pb-2 pr-3">RPE</th>
-                      <th className="pb-2 pr-3">Tempo</th>
                       <th className="pb-2 pr-3">PR</th>
                     </tr>
                   </thead>
                   <tbody>
                     {entry.sets.map((set, setIndex) => (
                       <tr key={set.id}>
-                        <td className="py-2 pr-3 text-white">{setIndex + 1}</td>
+                        <td className="py-2 pr-3 text-slate-900">{setIndex + 1}</td>
                         <td className="py-2 pr-3">
                           <input
-                            className="w-20 rounded-xl border border-line bg-panel px-3 py-2 text-white"
+                            className="w-20 rounded-xl border border-line bg-surface px-3 py-2 text-slate-900"
                             type="number"
                             value={set.weight}
                             onChange={(event) =>
@@ -207,7 +417,7 @@ export function WorkoutPage() {
                         </td>
                         <td className="py-2 pr-3">
                           <input
-                            className="w-20 rounded-xl border border-line bg-panel px-3 py-2 text-white"
+                            className="w-20 rounded-xl border border-line bg-surface px-3 py-2 text-slate-900"
                             type="number"
                             value={set.reps}
                             onChange={(event) =>
@@ -222,7 +432,7 @@ export function WorkoutPage() {
                         </td>
                         <td className="py-2 pr-3">
                           <input
-                            className="w-20 rounded-xl border border-line bg-panel px-3 py-2 text-white"
+                            className="w-20 rounded-xl border border-line bg-surface px-3 py-2 text-slate-900"
                             type="number"
                             min="1"
                             max="10"
@@ -244,21 +454,7 @@ export function WorkoutPage() {
                         </td>
                         <td className="py-2 pr-3">
                           <input
-                            className="w-28 rounded-xl border border-line bg-panel px-3 py-2 text-white"
-                            value={set.tempo ?? ''}
-                            onChange={(event) =>
-                              updateExerciseEntry(entry.id, (current) => ({
-                                ...current,
-                                sets: current.sets.map((item) =>
-                                  item.id === set.id ? { ...item, tempo: event.target.value } : item
-                                )
-                              }))
-                            }
-                          />
-                        </td>
-                        <td className="py-2 pr-3">
-                          <input
-                            className="h-4 w-4 rounded border-line bg-panel"
+                            className="h-4 w-4 rounded border-line bg-surface"
                             type="checkbox"
                             checked={set.isPr}
                             onChange={(event) =>
@@ -296,59 +492,6 @@ export function WorkoutPage() {
           <Button onClick={handleSaveWorkout}>保存训练</Button>
         </div>
       </Card>
-
-      <div className="grid gap-5">
-        <Card title="动作历史对比" subtitle="选择一个动作查看历史表现">
-          <Select label="动作" value={selectedExerciseId} onChange={(event) => setSelectedExerciseId(event.target.value)}>
-            {exercises.map((exercise) => (
-              <option key={exercise.id} value={exercise.id}>
-                {exercise.nameZh}
-              </option>
-            ))}
-          </Select>
-          <div className="mt-4 space-y-3">
-            {exerciseTrend.length === 0 ? (
-              <p className="text-sm text-muted">还没有该动作的历史记录。</p>
-            ) : (
-              exerciseTrend.map((item) => (
-                <div key={item.id} className="flex items-center justify-between rounded-2xl border border-line bg-surface px-4 py-3">
-                  <span className="text-sm text-white">{formatDate(item.date)}</span>
-                  <span className="font-mono text-sm text-accent">{item.topSet.toFixed(1)} volume index</span>
-                </div>
-              ))
-            )}
-          </div>
-        </Card>
-
-        <Card title="历史训练" subtitle="最近训练记录">
-          <div className="space-y-3">
-            {workouts.map((workout) => (
-              <div key={workout.id} className="rounded-2xl border border-line bg-surface p-4">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="text-sm text-muted">{formatDate(workout.date)}</p>
-                    <p className="mt-1 text-lg font-medium text-white">{formatWorkoutType(workout.type)}</p>
-                    <p className="mt-1 text-sm text-muted">
-                      {workout.focus === 'strength' ? '重量日' : workout.focus === 'volume' ? '容量日' : workout.focus}
-                    </p>
-                  </div>
-                  <div className="text-right text-sm text-muted">
-                    <p>{workout.durationMinutes} min</p>
-                    <p>RPE {workout.rpe}</p>
-                  </div>
-                </div>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {workout.exerciseEntries.map((entry) => (
-                    <span key={entry.id} className="rounded-full border border-line px-3 py-1 text-xs text-white">
-                      {getExerciseName(exercises, entry.exerciseId)}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-        </Card>
-      </div>
     </div>
   );
 }

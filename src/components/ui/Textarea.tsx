@@ -11,7 +11,7 @@ export function Textarea({ label, className, ...props }: TextareaProps) {
       <span>{label}</span>
       <textarea
         className={cn(
-          'min-h-28 rounded-2xl border border-line bg-surface px-4 py-3 text-white outline-none transition placeholder:text-muted focus:border-accent',
+          'min-h-28 rounded-2xl border border-line bg-surface px-4 py-3 text-slate-900 outline-none transition placeholder:text-muted focus:border-accent',
           className
         )}
         {...props}

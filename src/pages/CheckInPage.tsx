@@ -10,7 +10,7 @@ import type { DailyLog } from '../types';
 const today = new Date().toISOString().slice(0, 10);
 
 export function CheckInPage() {
-  const { user, dailyLogs, addDailyLog } = useAppStore();
+  const { user, addDailyLog } = useAppStore();
   const [date, setDate] = useState(today);
   const [sleepHours, setSleepHours] = useState(7.5);
   const [bedtime, setBedtime] = useState('00:00');
@@ -64,7 +64,7 @@ export function CheckInPage() {
   };
 
   return (
-    <div className="grid gap-5 xl:grid-cols-[1fr_0.9fr]">
+    <div className="grid gap-5">
       <Card title="Daily Check-in" subtitle="记录睡眠、心情、恢复、疼痛、饥饿和身体状态">
         <div className="grid gap-4 md:grid-cols-2">
           <Input label="日期" type="date" value={date} onChange={(event) => setDate(event.target.value)} />
@@ -89,29 +89,6 @@ export function CheckInPage() {
         </div>
         <div className="mt-4">
           <Button onClick={handleSave}>保存 Check-in</Button>
-        </div>
-      </Card>
-
-      <Card title="最近状态记录" subtitle="帮助复盘主观状态和恢复节奏">
-        <div className="space-y-3">
-          {dailyLogs.map((log) => (
-            <div key={log.id} className="rounded-2xl border border-line bg-surface p-4">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <p className="text-sm text-muted">{log.date}</p>
-                  <p className="mt-1 text-white">
-                    睡眠 {log.sleepHours}h · 心情 {log.mood}/5 · 疲劳 {log.fatigue}/5
-                  </p>
-                </div>
-                <span className="rounded-full border border-line px-3 py-1 text-xs text-white">
-                  疼痛 {log.painLevel}/10
-                </span>
-              </div>
-              <p className="mt-2 text-sm text-muted">
-                酸痛: {log.sorenessAreas.join('、') || '无'} | 疼痛: {log.painAreas.join('、') || '无'}
-              </p>
-            </div>
-          ))}
         </div>
       </Card>
     </div>

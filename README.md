@@ -87,7 +87,10 @@ npm install
 npm run dev
 ```
 
-默认会在 `http://localhost:5173` 启动。
+默认会同时启动：
+
+- Web: `http://localhost:5173`
+- AI meal parser API: `http://127.0.0.1:8787`
 
 ### 4. 构建生产版本
 
@@ -111,6 +114,9 @@ cp .env.example .env
 ```env
 VITE_SUPABASE_URL=...
 VITE_SUPABASE_ANON_KEY=...
+OPENAI_API_KEY=...
+OPENAI_MEAL_MODEL=gpt-4.1-mini
+OPENAI_WORKOUT_MODEL=gpt-4.1-mini
 ```
 
 ### 2. 执行 schema
@@ -130,13 +136,18 @@ VITE_SUPABASE_ANON_KEY=...
   - 简化版 Daily Readiness Score
 - 训练记录
   - 新建训练
+  - 支持自然语言模糊输入训练
+  - 支持上传训练截图给 ChatGPT 解析
   - 重量日 / 容量日标记
   - 模板快速创建
-  - 动作、组数、重量、次数、RPE、tempo、PR 记录
+  - 动作、组数、重量、次数、RPE、PR 记录
   - 舞蹈训练字段预留
   - 历史训练和动作历史对比
 - 饮食记录
   - 每餐录入
+  - 支持自然语言模糊输入
+  - 支持上传食物照片给 ChatGPT 分析
+  - 自动估算热量和三大营养素
   - Markdown 风格一行总结
   - 每日热量和三大营养素统计
 - Daily Check-in
@@ -150,6 +161,27 @@ VITE_SUPABASE_ANON_KEY=...
 - Settings
   - 重量单位切换
   - Supabase 状态提示
+
+## Apple Health / Apple Watch 接入方向
+
+当前仓库已经新增一个 iPhone companion app scaffold，路径在：
+
+- [ios-companion/README.md](/Users/winkietian/Documents/New%20project/fitness-tracker-mvp/ios-companion/README.md)
+- [docs/apple-health-sync.md](/Users/winkietian/Documents/New%20project/fitness-tracker-mvp/docs/apple-health-sync.md)
+
+核心思路：
+
+- 保留当前 React Web App 作为主前端
+- 新增 iPhone 原生 app 读取 HealthKit
+- 将 Apple Watch / Apple Health 数据同步到 Supabase
+- Web 端继续读取 Supabase 做展示和趋势分析
+
+目前已包含：
+
+- SwiftUI companion app 源码骨架
+- HealthKit 授权 / 查询封装
+- Supabase REST 同步客户端
+- Apple Health 扩展表 SQL
 
 ## 数据库设计说明
 

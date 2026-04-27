@@ -5,10 +5,10 @@
 @tailwind utilities;
 
 :root {
-  color: #f5f7fb;
+  color: #16324f;
   background:
-    radial-gradient(circle at top, rgba(199, 255, 107, 0.1), transparent 24%),
-    linear-gradient(180deg, #0d0d0f 0%, #131419 100%);
+    radial-gradient(circle at top, rgba(79, 140, 201, 0.18), transparent 22%),
+    linear-gradient(180deg, #f8fbff 0%, #eaf3ff 100%);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -23,6 +23,10 @@ body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
+  color: #16324f;
+  background:
+    radial-gradient(circle at top, rgba(79, 140, 201, 0.16), transparent 24%),
+    linear-gradient(180deg, #f8fbff 0%, #eaf3ff 100%);
 }
 
 button,
@@ -46,6 +50,6 @@ textarea {
 }
 
 .scrollbar-thin::-webkit-scrollbar-thumb {
-  background: #2d3038;
+  background: #bfd4ee;
   border-radius: 999px;
 }

@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
+import { ImagePlus, Sparkles } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 import { Input } from '../components/ui/Input';
@@ -6,57 +7,105 @@ import { Select } from '../components/ui/Select';
 import { Textarea } from '../components/ui/Textarea';
 import { formatMealType, makeId } from '../lib/utils';
 import { useAppStore } from '../store/appStore';
-import type { Meal, MealType } from '../types';
+import type { Meal, MealAnalysisResult, MealType } from '../types';
 
 const today = new Date().toISOString().slice(0, 10);
 
 export function MealPage() {
-  const { meals, addMeal, user } = useAppStore();
+  const { addMeal, user } = useAppStore();
   const [date, setDate] = useState(today);
   const [mealType, setMealType] = useState<MealType>('breakfast');
-  const [summary, setSummary] = useState('燕麦40g、牛奶150g、鸡蛋2个、草莓');
-  const [calories, setCalories] = useState(450);
-  const [protein, setProtein] = useState(28);
-  const [carbs, setCarbs] = useState(45);
-  const [fat, setFat] = useState(16);
+  const [mealInput, setMealInput] = useState('早餐：燕麦40g、牛奶150g、鸡蛋2个、草莓');
+  const [mealImageDataUrl, setMealImageDataUrl] = useState('');
+  const [analysis, setAnalysis] = useState<MealAnalysisResult | null>(null);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [analysisError, setAnalysisError] = useState('');
   const [note, setNote] = useState('');
 
-  const todayMeals = useMemo(() => meals.filter((meal) => meal.date === date), [date, meals]);
-  const totals = todayMeals.reduce(
-    (acc, meal) => ({
-      calories: acc.calories + meal.calories,
-      protein: acc.protein + meal.protein,
-      carbs: acc.carbs + meal.carbs,
-      fat: acc.fat + meal.fat
-    }),
-    { calories: 0, protein: 0, carbs: 0, fat: 0 }
-  );
+  const handleImageChange = async (file: File | null) => {
+    if (!file) {
+      setMealImageDataUrl('');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === 'string') {
+        setMealImageDataUrl(reader.result);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleAnalyzeMeal = async () => {
+    if (!mealInput.trim() && !mealImageDataUrl) {
+      setAnalysisError('请先输入一句饮食描述，或者上传一张食物照片。');
+      return;
+    }
+
+    setIsAnalyzing(true);
+    setAnalysisError('');
+
+    try {
+      const response = await fetch('/api/meal-analyze', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          mealType,
+          prompt: mealInput,
+          imageDataUrl: mealImageDataUrl || undefined
+        })
+      });
+
+      if (!response.ok) {
+        const errorPayload = await response.json().catch(() => null);
+        throw new Error(errorPayload?.error ?? '饮食解析失败，请稍后重试。');
+      }
+
+      const payload = (await response.json()) as MealAnalysisResult;
+      setAnalysis(payload);
+      setNote(payload.assumptions.join('；'));
+    } catch (error) {
+      setAnalysisError(error instanceof Error ? error.message : '饮食解析失败，请稍后重试。');
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
 
   const handleSaveMeal = () => {
+    if (!analysis) {
+      setAnalysisError('请先让 AI 帮你解析这餐，再保存饮食记录。');
+      return;
+    }
+
     const meal: Meal = {
       id: makeId('meal'),
       userId: user.id,
       date,
       mealType,
-      entries: summary.split(/[，,]/).map((item) => ({
+      entries: analysis.items.map((item) => ({
         id: makeId('entry'),
-        foodName: item.trim(),
-        amountText: item.trim()
+        foodName: item.name,
+        amountText: item.amountText
       })),
-      calories,
-      protein,
-      carbs,
-      fat,
+      calories: analysis.totals.calories,
+      protein: analysis.totals.protein,
+      carbs: analysis.totals.carbs,
+      fat: analysis.totals.fat,
       note
     };
 
     addMeal(meal);
     setNote('');
+    setAnalysis(null);
+    setMealImageDataUrl('');
   };
 
   return (
-    <div className="grid gap-5 xl:grid-cols-[0.95fr_1.05fr]">
-      <Card title="记录饮食" subtitle="支持一餐一行的 Markdown 风格总结">
+    <div className="grid gap-5">
+      <Card title="记录饮食" subtitle="输入一句模糊描述或上传照片，让 AI 自动估算营养">
         <div className="grid gap-4 md:grid-cols-2">
           <Input label="日期" type="date" value={date} onChange={(event) => setDate(event.target.value)} />
           <Select label="餐次" value={mealType} onChange={(event) => setMealType(event.target.value as MealType)}>
@@ -71,68 +120,87 @@ export function MealPage() {
         </div>
         <div className="mt-4">
           <Textarea
-            label="食物摘要"
-            value={summary}
-            onChange={(event) => setSummary(event.target.value)}
-            placeholder="燕麦40g、牛奶150g、鸡蛋2个、草莓"
+            label="模糊输入"
+            value={mealInput}
+            onChange={(event) => setMealInput(event.target.value)}
+            placeholder="例如：午餐吃了半碗米饭、一份番茄炒蛋、一块鸡腿肉，油不算太多"
           />
         </div>
-        <div className="mt-4 grid gap-4 md:grid-cols-2">
-          <Input label="热量 (kcal)" type="number" value={calories} onChange={(event) => setCalories(Number(event.target.value))} />
-          <Input label="蛋白质 (g)" type="number" value={protein} onChange={(event) => setProtein(Number(event.target.value))} />
-          <Input label="碳水 (g)" type="number" value={carbs} onChange={(event) => setCarbs(Number(event.target.value))} />
-          <Input label="脂肪 (g)" type="number" value={fat} onChange={(event) => setFat(Number(event.target.value))} />
+        <div className="mt-4 rounded-3xl border border-dashed border-line bg-panel p-4">
+          <label className="flex cursor-pointer flex-col gap-3 text-sm text-muted">
+            <span className="flex items-center gap-2 text-ink">
+              <ImagePlus size={16} />
+              上传食物照片（可选）
+            </span>
+            <input
+              type="file"
+              accept="image/*"
+              className="text-sm"
+              onChange={(event) => handleImageChange(event.target.files?.[0] ?? null)}
+            />
+          </label>
+          {mealImageDataUrl ? (
+            <img
+              src={mealImageDataUrl}
+              alt="食物预览"
+              className="mt-4 h-40 w-full rounded-2xl object-cover"
+            />
+          ) : null}
         </div>
         <div className="mt-4">
-          <Textarea label="备注" placeholder="生重、烹饪方式、训练日碳水策略" value={note} onChange={(event) => setNote(event.target.value)} />
+          <Button onClick={handleAnalyzeMeal} disabled={isAnalyzing}>
+            <Sparkles size={16} />
+            {isAnalyzing ? '正在分析...' : '让 AI 分析这餐'}
+          </Button>
         </div>
-        <div className="mt-4 rounded-2xl border border-dashed border-accent/40 bg-accent/5 p-4 font-mono text-sm text-white">
-          {formatMealType(mealType)}｜{summary}｜约 {calories} kcal｜P {protein}g / C {carbs}g / F {fat}g
+        {analysisError ? <p className="mt-3 text-sm text-red-600">{analysisError}</p> : null}
+        <div className="mt-4">
+          <Textarea
+            label="备注 / 假设"
+            placeholder="这里会自动带入模型的估算假设，你也可以手动补充"
+            value={note}
+            onChange={(event) => setNote(event.target.value)}
+          />
         </div>
         <div className="mt-4">
-          <Button onClick={handleSaveMeal}>保存饮食记录</Button>
+          <Button onClick={handleSaveMeal} disabled={!analysis}>
+            保存饮食记录
+          </Button>
         </div>
       </Card>
 
-      <div className="grid gap-5">
-        <Card title="每日营养总览" subtitle={`${date} 的 TDN / TDZ 汇总`}>
-          <div className="grid gap-3 md:grid-cols-2">
-            <div className="rounded-2xl border border-line bg-surface p-4">
-              <p className="text-sm text-muted">总热量</p>
-              <p className="mt-2 text-2xl font-semibold text-white">{totals.calories} kcal</p>
+      <Card title="智能解析结果" subtitle="你不需要自己手填碳水、蛋白质和脂肪">
+        {analysis ? (
+          <div className="space-y-4">
+            <div className="rounded-2xl border border-dashed border-accent/40 bg-[#eef6ff] p-4 font-mono text-sm text-slate-900">
+              {formatMealType(mealType)}｜{analysis.summary}｜约 {analysis.totals.calories} kcal｜蛋白质 {analysis.totals.protein}g / 碳水 {analysis.totals.carbs}g / 脂肪 {analysis.totals.fat}g
             </div>
-            <div className="rounded-2xl border border-line bg-surface p-4">
-              <p className="text-sm text-muted">TDZ</p>
-              <p className="mt-2 text-lg font-semibold text-white">
-                {totals.carbs} / {totals.protein} / {totals.fat}
-              </p>
-              <p className="mt-1 text-xs text-muted">carb / protein / fat</p>
+            <div className="flex items-center justify-between rounded-2xl border border-line bg-panel px-4 py-3 text-sm">
+              <span className="text-muted">估算置信度</span>
+              <span className="font-medium text-ink">
+                {analysis.confidence === 'high'
+                  ? '高'
+                  : analysis.confidence === 'medium'
+                    ? '中'
+                    : '低'}
+              </span>
             </div>
-            <div className="rounded-2xl border border-line bg-surface p-4">
-              <p className="text-sm text-muted">蛋白质是否达标</p>
-              <p className="mt-2 text-white">{totals.protein >= 110 ? '已达标' : '仍需补充'}</p>
-            </div>
-            <div className="rounded-2xl border border-line bg-surface p-4">
-              <p className="text-sm text-muted">碳水是否匹配训练量</p>
-              <p className="mt-2 text-white">{totals.carbs >= 150 ? '适合训练日' : '更像休息日碳水'}</p>
+            <div className="space-y-3">
+              {analysis.items.map((item, index) => (
+                <div key={`${item.name}-${index}`} className="rounded-2xl border border-line bg-panel p-4">
+                  <p className="font-medium text-ink">{item.name}</p>
+                  <p className="mt-1 text-sm text-muted">{item.amountText}</p>
+                  <p className="mt-2 text-sm text-ink">
+                    {item.calories} kcal｜蛋白质 {item.protein}g / 碳水 {item.carbs}g / 脂肪 {item.fat}g
+                  </p>
+                </div>
+              ))}
             </div>
           </div>
-        </Card>
-
-        <Card title="当日餐次记录" subtitle="按一餐一行快速回顾">
-          <div className="space-y-3">
-            {todayMeals.map((meal) => (
-              <div key={meal.id} className="rounded-2xl border border-line bg-surface p-4">
-                <p className="font-mono text-sm text-accent">
-                  {formatMealType(meal.mealType)}｜
-                  {meal.entries.map((entry) => entry.foodName).join('、')}｜约 {meal.calories} kcal｜P {meal.protein}g / C {meal.carbs}g / F {meal.fat}g
-                </p>
-                {meal.note ? <p className="mt-2 text-sm text-muted">{meal.note}</p> : null}
-              </div>
-            ))}
-          </div>
-        </Card>
-      </div>
+        ) : (
+          <p className="text-sm text-muted">输入一句饮食描述或上传照片后，点“让 AI 分析这餐”。</p>
+        )}
+      </Card>
     </div>
   );
 }

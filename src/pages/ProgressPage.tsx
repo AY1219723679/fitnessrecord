@@ -120,13 +120,13 @@ export function ProgressPage() {
           </Card>
           <Card title="主项趋势">
             <div className="space-y-3 text-sm">
-              <div className="rounded-2xl border border-line bg-surface p-4">
+              <div className="rounded-2xl border border-line bg-panel p-4">
                 <p className="text-muted">Bench / Pull-up / Row / Shoulder Press</p>
-                <p className="mt-2 text-white">当前 MVP 已支持历史训练数据对比和图表聚合。</p>
+                <p className="mt-2 text-slate-900">当前 MVP 已支持历史训练数据对比和图表聚合。</p>
               </div>
-              <div className="rounded-2xl border border-line bg-surface p-4">
+              <div className="rounded-2xl border border-line bg-panel p-4">
                 <p className="text-muted">睡眠与疲劳</p>
-                <p className="mt-2 text-white">低于 7 小时睡眠时，训练 RPE 往往更高。</p>
+                <p className="mt-2 text-slate-900">低于 7 小时睡眠时，训练 RPE 往往更高。</p>
               </div>
             </div>
           </Card>

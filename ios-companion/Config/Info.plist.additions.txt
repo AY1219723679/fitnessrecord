@@ -1,0 +1,7 @@
+Add these keys to the iOS target Info.plist:
+
+NSHealthShareUsageDescription
+Fitness Record 需要读取你的 Apple Health 数据，用于同步睡眠、心率、HRV、步数、活动能量和训练记录，帮助你在 Web 端长期追踪恢复与训练表现。
+
+NSHealthUpdateUsageDescription
+Fitness Record 可能会在后续版本把你主动记录的训练或营养摘要写回 Apple Health，保持不同设备上的健康记录一致。

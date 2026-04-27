@@ -13,6 +13,19 @@ import {
 import { makeId } from '../lib/utils';
 import type { AppState, Workout } from '../types';
 
+const mergeSeedWorkouts = (persistedWorkouts: Workout[] | undefined, seededWorkouts: Workout[]) => {
+  const existing = persistedWorkouts ?? [];
+  const byId = new Map(existing.map((workout) => [workout.id, workout]));
+
+  for (const workout of seededWorkouts) {
+    if (!byId.has(workout.id)) {
+      byId.set(workout.id, workout);
+    }
+  }
+
+  return Array.from(byId.values()).sort((a, b) => b.date.localeCompare(a.date));
+};
+
 export const useAppStore = create<AppState>()(
   persist(
     (set, get) => ({
@@ -76,20 +89,18 @@ export const useAppStore = create<AppState>()(
                 weight: 0,
                 reps: exerciseId.includes('plank') || exerciseId.includes('hold') ? 1 : 8,
                 rpe: 7,
-                tempo: '',
                 isPr: false,
                 note: ''
               }
             ]
           }))
         };
-
-        set((state) => ({
-          workouts: [workout, ...state.workouts]
-        }));
-
         return workout;
       },
+      deleteWorkout: (workoutId) =>
+        set((state) => ({
+          workouts: state.workouts.filter((workout) => workout.id !== workoutId)
+        })),
       updateWeightUnit: (unit) =>
         set((state) => ({
           user: {
@@ -99,7 +110,17 @@ export const useAppStore = create<AppState>()(
         }))
     }),
     {
-      name: 'fitness-tracker-mvp'
+      name: 'fitness-tracker-mvp',
+      merge: (persistedState, currentState) => {
+        const persisted = persistedState as Partial<AppState> | undefined;
+        const current = currentState as AppState;
+
+        return {
+          ...current,
+          ...persisted,
+          workouts: mergeSeedWorkouts(persisted?.workouts, current.workouts)
+        };
+      }
     }
   )
 );

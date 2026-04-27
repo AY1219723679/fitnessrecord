@@ -4,15 +4,15 @@ export default {
   theme: {
     extend: {
       colors: {
-        ink: '#0d0d0f',
-        surface: '#141418',
-        panel: '#1b1c21',
-        line: '#2d3038',
-        muted: '#8f96a3',
-        accent: '#c7ff6b'
+        ink: '#16324f',
+        surface: '#ffffff',
+        panel: '#eef5ff',
+        line: '#cfe0f5',
+        muted: '#5f7388',
+        accent: '#4f8cc9'
       },
       boxShadow: {
-        panel: '0 12px 30px rgba(0, 0, 0, 0.18)'
+        panel: '0 14px 30px rgba(79, 140, 201, 0.12)'
       },
       fontFamily: {
         sans: ['"IBM Plex Sans"', 'system-ui', 'sans-serif'],

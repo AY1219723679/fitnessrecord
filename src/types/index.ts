@@ -43,7 +43,6 @@ export interface WorkoutSet {
   weight: number;
   reps: number;
   rpe: Score1To10;
-  tempo?: string;
   isPr: boolean;
   note?: string;
 }
@@ -105,6 +104,54 @@ export interface Meal {
   carbs: number;
   fat: number;
   note?: string;
+}
+
+export interface MealAnalysisItem {
+  name: string;
+  amountText: string;
+  calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+}
+
+export interface MealAnalysisResult {
+  summary: string;
+  confidence: 'high' | 'medium' | 'low';
+  items: MealAnalysisItem[];
+  assumptions: string[];
+  totals: {
+    calories: number;
+    protein: number;
+    carbs: number;
+    fat: number;
+  };
+}
+
+export interface WorkoutAnalysisSet {
+  weight: number;
+  reps: number;
+  rpe: Score1To10;
+  isPr: boolean;
+}
+
+export interface WorkoutAnalysisExercise {
+  exerciseName: string;
+  note?: string;
+  sets: WorkoutAnalysisSet[];
+}
+
+export interface WorkoutAnalysisResult {
+  workoutType: WorkoutType;
+  focus: WorkoutFocus;
+  durationMinutes: number;
+  rpe: Score1To10;
+  energyLevel: Score1To5;
+  painAreas: string[];
+  note: string;
+  confidence: 'high' | 'medium' | 'low';
+  assumptions: string[];
+  exercises: WorkoutAnalysisExercise[];
 }
 
 export interface DailyLog {
@@ -175,5 +222,6 @@ export interface AppState {
   addDailyLog: (log: DailyLog) => void;
   addBodyMetric: (metric: BodyMetric) => void;
   applyTemplate: (templateId: string) => Workout | null;
+  deleteWorkout: (workoutId: string) => void;
   updateWeightUnit: (unit: WeightUnit) => void;
 }

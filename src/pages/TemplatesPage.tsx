@@ -11,7 +11,7 @@ export function TemplatesPage() {
         <Card key={template.id} title={template.name} subtitle={template.description}>
           <div className="mb-4 flex flex-wrap gap-2">
             {template.exerciseIds.map((exerciseId) => (
-              <span key={exerciseId} className="rounded-full border border-line px-3 py-1 text-xs text-white">
+              <span key={exerciseId} className="rounded-full border border-line bg-panel px-3 py-1 text-xs text-slate-900">
                 {exercises.find((exercise) => exercise.id === exerciseId)?.nameZh}
               </span>
             ))}

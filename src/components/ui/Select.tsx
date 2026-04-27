@@ -11,7 +11,7 @@ export function Select({ label, children, className, ...props }: SelectProps) {
       <span>{label}</span>
       <select
         className={cn(
-          'rounded-2xl border border-line bg-surface px-4 py-3 text-white outline-none transition focus:border-accent',
+          'rounded-2xl border border-line bg-surface px-4 py-3 text-slate-900 outline-none transition focus:border-accent',
           className
         )}
         {...props}

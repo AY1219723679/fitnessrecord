@@ -24,16 +24,16 @@ export function SettingsPage() {
 
       <Card title="数据层状态" subtitle="方便后续从 local mock data 切换到 Supabase">
         <div className="space-y-4 text-sm text-muted">
-          <div className="rounded-2xl border border-line bg-surface p-4">
-            <p className="text-white">Supabase Client</p>
+          <div className="rounded-2xl border border-line bg-panel p-4">
+            <p className="text-slate-900">Supabase Client</p>
             <p className="mt-2">
               {hasSupabaseEnv
                 ? '已检测到环境变量，可以继续接真实数据库。'
                 : '暂未检测到 `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY`，当前运行在本地持久化模式。'}
             </p>
           </div>
-          <div className="rounded-2xl border border-line bg-surface p-4">
-            <p className="text-white">Auth 规划</p>
+          <div className="rounded-2xl border border-line bg-panel p-4">
+            <p className="text-slate-900">Auth 规划</p>
             <p className="mt-2">MVP 已预留 email login 方向，当前用 demo user 模拟单用户场景。</p>
           </div>
           <Button variant="secondary">后续可扩展到 PWA</Button>
